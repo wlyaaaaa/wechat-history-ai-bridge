@@ -92,6 +92,19 @@ class ProjectContractTests(unittest.TestCase):
         self.assertIn("raw_messages", forbidden)
         self.assertIn("database_files", forbidden)
         self.assertIn("conversation_screenshots", forbidden)
+        handoff = manifest["private_snapshot_handoff"]
+        self.assertEqual(
+            handoff["status"],
+            "allowed_for_explicitly_authorized_private_consumer",
+        )
+        self.assertEqual(
+            handoff["allowed_consumer"],
+            "PersonalOS private late-bound runtime",
+        )
+        self.assertIn(
+            "no source write-back and no second writable WeFlow state",
+            handoff["requirements"],
+        )
 
     def test_closeout_audit_exists_and_records_final_gate(self):
         text = read_text("docs/closeout_audit.md")
@@ -125,6 +138,9 @@ class ProjectContractTests(unittest.TestCase):
             "message_count",
             "lastTimestamp_matches_newest",
             "PersonalOS",
+            "Private immutable snapshot handoff",
+            "private, non-repository destination",
+            "no second writable database",
         ]
         for term in required_terms:
             with self.subTest(term=term):
@@ -450,6 +466,8 @@ class ProjectContractTests(unittest.TestCase):
             "screenshots",
             "database",
             "exports/",
+            "private late-bound runtime",
+            "not a second writable WeFlow",
         ]
         for term in required_terms:
             with self.subTest(term=term):

@@ -7,7 +7,7 @@
 ## 它是什么
 本机 `http://127.0.0.1:5031` 上的 WeFlow HTTP API —— 把**本地微信（4.0+）的聊天记录、联系人、群成员、朋友圈**映射成 REST 接口。只监听回环，外网不可达。解密由 WeFlow 内部完成，**密钥不是接口入参**。
 
-本仓库是 WeFlow 数据源适配器项目，负责公开安全文档、自检、看门狗和 AI 消费契约；它不是原始微信数据仓库，也不是 PersonalOS / CareerCapital / SocialCapital / LifeCases 的长期事实库。
+本仓库是 WeFlow 数据源适配器项目，负责公开安全文档、自检、看门狗和 AI 消费契约；它不是原始微信数据仓库，也不是 PersonalOS / CareerCapital / SocialCapital / LifeCases 的长期事实库。经用户明确授权时，消费合同允许 PersonalOS 的私密晚绑定运行根保存按账号隔离、版本绑定、校验通过的不可变来源包；这不把原始载荷带入本公开仓库，也不建立第二套可写 WeFlow 状态。
 
 ## 鉴权（必读）
 除 `/health` 外所有接口都要 token，无 token → `401`。token 三种写法都行：

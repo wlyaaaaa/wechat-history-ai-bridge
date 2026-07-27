@@ -51,6 +51,30 @@
     "SocialCapital",
     "LifeCases"
   ],
+  "private_snapshot_handoff": {
+    "status": "allowed_for_explicitly_authorized_private_consumer",
+    "owner_boundary": "WeFlowBridge owns versioned acquisition and decoding semantics; the consumer owns its private immutable evidence package and derived representations",
+    "allowed_consumer": "PersonalOS private late-bound runtime",
+    "allowed_payloads": [
+      "account-scoped immutable source-native exports",
+      "database and WAL/SHM recovery snapshots",
+      "media payloads and manifests",
+      "hashes, coverage, lineage, checkpoints, and gap receipts"
+    ],
+    "requirements": [
+      "explicit user source authorization",
+      "private non-repository destination",
+      "one account identity and checkpoint namespace per source instance",
+      "version-bound export contract and complete output verification",
+      "no source write-back and no second writable WeFlow state"
+    ],
+    "forbidden": [
+      "raw payloads in this public repository",
+      "secrets in argv, logs, receipts, or Git",
+      "treating an empty or partial export as complete",
+      "making ordinary PersonalOS queries depend on WeFlow being online"
+    ]
+  },
   "privacy_forbidden": [
     "env_files",
     "weflow_token",

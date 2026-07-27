@@ -20,7 +20,7 @@ It does not own relationship analysis, career analysis, PersonalOS memory, raw m
 | Consumer | Allowed role | Not allowed |
 | --- | --- | --- |
 | `.agents` / `weflow-toolkit v0.2+` | Call the local API, judge active library, normalize metadata, enforce privacy rules | Store raw chat history as durable project data |
-| `PersonalOS` | Register WeChat history as an available data source | Copy full chat exports or maintain duplicate WeFlow state |
+| `PersonalOS` | Register WeChat history and, after explicit source authorization, retain a version-bound immutable source package in its private late-bound runtime | Put private payloads in Git, maintain a second writable WeFlow state, write back to WeChat, or make ordinary queries depend on WeFlow being online |
 | `CareerCapital` | Query work-related conversations when a task needs evidence | Own family, romance, or unrelated social facts |
 | `SocialCapital` | Query relationship, family, romance, and friend context when needed | Own career negotiation or salary facts |
 | `LifeCases` | Pull excerpts as evidence for a specific cross-domain case | Become a permanent WeChat archive |
@@ -114,4 +114,35 @@ Do not create a separate E-drive project just to manage WeFlow access. The curre
 - `E:\.agents\plugins\weflow-toolkit` (`weflow-toolkit v0.2+`): AI calling skill and helper scripts.
 - Downstream projects: task-specific analysis and decisions.
 
-Create a new private project only if there is a future need for a durable WeChat archive, vector index, relationship knowledge base, or large-scale export pipeline.
+### Private immutable snapshot handoff
+
+The public repository still stores no raw WeChat data. That repository boundary
+does not prohibit an explicitly authorized private consumer from preserving the
+source evidence it needs for recovery and offline processing.
+
+For PersonalOS, the supported handoff is:
+
+1. bind one account identity, database/media locator, key reference and
+   checkpoint namespace per source instance;
+2. acquire through a version-bound WeFlow/WeLive interface into an immutable,
+   private, non-repository destination;
+3. retain the completed source-native export, required database/WAL/SHM recovery
+   snapshot, media payloads or references, hashes, coverage, lineage and gap
+   receipts;
+4. accept the package only after the export reports complete, all declared
+   outputs exist, counts reconcile and recorded hashes read back;
+5. keep active WeFlow/WeChat state read-only: no write-back and no second writable database;
+6. perform ordinary PersonalOS queries from its own verified package and
+   replaceable derived representations, not from a live WeFlow dependency.
+
+Two accounts are two independent source instances and runs. An active-library
+probe, a single API response or one account's keys never proves the other
+account complete. Empty, partial, version-mismatched or hash-mismatched output
+fails closed and does not advance a checkpoint.
+
+Secrets are supplied only through a private configuration or local secret
+binding. They must not appear in command-line arguments, stdout/stderr, receipts
+or Git. The public project owns the acquisition/decoding contract; PersonalOS
+owns only its private immutable evidence package, coverage and derived
+representations. This does not authorize a new archive product, vector store,
+relationship database or duplicate semantic owner.

@@ -60,9 +60,22 @@ Message text should be minimized:
 
 ## Downstream Project Boundary
 
-Downstream private projects may request message excerpts through `.agents` skills, but they should not copy WeFlow's raw database into their own repositories unless the user explicitly creates a dedicated private archive project.
+Downstream private projects may request message excerpts through `.agents`
+skills. They must not copy WeFlow databases, exports or media into their own Git
+repositories.
 
-`PersonalOS` may register WeFlow as a data source. It should not own raw messages.
+With explicit user source authorization, `PersonalOS` may retain an immutable,
+account-scoped source package in its private late-bound runtime. That package
+may contain a completed source-native export, database/WAL/SHM recovery
+snapshot, media payloads or references, hashes, coverage, lineage and
+checkpoints. It is recovery and evidence material, not a second writable WeFlow
+database or a new public archive product. WeFlowBridge continues to own
+versioned acquisition and decoding semantics; PersonalOS owns the private
+package and its replaceable derived representations.
+
+This permission never moves secrets or raw payloads into this public repository,
+never authorizes source write-back, and never lets an empty or partial export
+advance a completeness checkpoint.
 
 `CareerCapital`, `SocialCapital`, and `LifeCases` may reference WeFlow evidence for specific decisions, but each project owns only its domain-specific interpretation.
 

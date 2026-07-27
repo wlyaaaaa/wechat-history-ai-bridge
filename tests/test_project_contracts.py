@@ -1,7 +1,10 @@
 import unittest
+from copy import deepcopy
 import json
 import re
 from pathlib import Path
+
+from jsonschema import Draft202012Validator, ValidationError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -294,6 +297,39 @@ class ProjectContractTests(unittest.TestCase):
         for key in manifest["machine_contracts"]:
             with self.subTest(contract_key=key):
                 self.assertIn(key, schema["properties"]["machine_contracts"]["required"])
+
+    def test_project_manifest_schema_rejects_missing_or_malformed_private_handoff(self):
+        schema = read_json("schemas/project-manifest.v1.schema.json")
+        manifest = read_json("project_manifest.json")
+        Draft202012Validator.check_schema(schema)
+        validator = Draft202012Validator(schema)
+        validator.validate(manifest)
+
+        missing = deepcopy(manifest)
+        del missing["private_snapshot_handoff"]
+        with self.assertRaises(ValidationError):
+            validator.validate(missing)
+
+        malformed_cases = []
+        malformed = deepcopy(manifest)
+        malformed["private_snapshot_handoff"]["owner_boundary"] = "ambiguous"
+        malformed_cases.append(malformed)
+        malformed = deepcopy(manifest)
+        malformed["private_snapshot_handoff"]["requirements"] = [
+            "explicit user source authorization"
+        ]
+        malformed_cases.append(malformed)
+        malformed = deepcopy(manifest)
+        malformed["private_snapshot_handoff"]["forbidden"] = []
+        malformed_cases.append(malformed)
+        malformed = deepcopy(manifest)
+        malformed["private_snapshot_handoff"]["unexpected"] = True
+        malformed_cases.append(malformed)
+
+        for malformed in malformed_cases:
+            with self.subTest(handoff=malformed["private_snapshot_handoff"]):
+                with self.assertRaises(ValidationError):
+                    validator.validate(malformed)
 
     def test_public_boundary_scripts_exist_and_cover_ci_checks(self):
         public_boundary = read_text("tools/test-public-boundary.ps1")

@@ -142,7 +142,8 @@ fails closed and does not advance a checkpoint.
 
 Secrets are supplied only through a private configuration or local secret
 binding. They must not appear in command-line arguments, stdout/stderr, receipts
-or Git. The public project owns the acquisition/decoding contract; PersonalOS
-owns only its private immutable evidence package, coverage and derived
-representations. This does not authorize a new archive product, vector store,
-relationship database or duplicate semantic owner.
+or Git. WeFlow/WeLive owns source data, decryption and export implementation;
+WeFlowBridge owns only the version-bound adaptation, handoff and verification
+contracts; PersonalOS owns its authorized private immutable evidence package,
+coverage and derived representations. This does not authorize a new archive
+product, vector store, relationship database or duplicate semantic owner.

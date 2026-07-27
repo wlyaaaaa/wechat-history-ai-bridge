@@ -16,6 +16,7 @@
     "ai_contract_version",
     "integration_readiness",
     "machine_contracts",
+    "private_snapshot_handoff",
     "privacy_forbidden",
     "required_output_envelope",
     "ai_contract_v2_fields",
@@ -105,6 +106,54 @@
         },
         "ai_consumer_envelope_example": {
           "const": "docs/examples/ai_consumer_envelope.example.json"
+        }
+      }
+    },
+    "private_snapshot_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "owner_boundary",
+        "allowed_consumer",
+        "allowed_payloads",
+        "requirements",
+        "forbidden"
+      ],
+      "properties": {
+        "status": {
+          "const": "allowed_for_explicitly_authorized_private_consumer"
+        },
+        "owner_boundary": {
+          "const": "WeFlow/WeLive owns source data, decryption, and export implementation; WeFlowBridge owns version-bound adaptation, handoff, and verification contracts; PersonalOS owns the authorized private immutable package and derived representations"
+        },
+        "allowed_consumer": {
+          "const": "PersonalOS private late-bound runtime"
+        },
+        "allowed_payloads": {
+          "const": [
+            "account-scoped immutable source-native exports",
+            "database and WAL/SHM recovery snapshots",
+            "media payloads and manifests",
+            "hashes, coverage, lineage, checkpoints, and gap receipts"
+          ]
+        },
+        "requirements": {
+          "const": [
+            "explicit user source authorization",
+            "private non-repository destination",
+            "one account identity and checkpoint namespace per source instance",
+            "version-bound export contract and complete output verification",
+            "no source write-back and no second writable WeFlow state"
+          ]
+        },
+        "forbidden": {
+          "const": [
+            "raw payloads in this public repository",
+            "secrets in argv, logs, receipts, or Git",
+            "treating an empty or partial export as complete",
+            "making ordinary PersonalOS queries depend on WeFlow being online"
+          ]
         }
       }
     },

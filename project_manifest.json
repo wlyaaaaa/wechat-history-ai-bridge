@@ -53,7 +53,7 @@
   ],
   "private_snapshot_handoff": {
     "status": "allowed_for_explicitly_authorized_private_consumer",
-    "owner_boundary": "WeFlowBridge owns versioned acquisition and decoding semantics; the consumer owns its private immutable evidence package and derived representations",
+    "owner_boundary": "WeFlow/WeLive owns source data, decryption, and export implementation; WeFlowBridge owns version-bound adaptation, handoff, and verification contracts; PersonalOS owns the authorized private immutable package and derived representations",
     "allowed_consumer": "PersonalOS private late-bound runtime",
     "allowed_payloads": [
       "account-scoped immutable source-native exports",

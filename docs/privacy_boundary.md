@@ -69,9 +69,10 @@ account-scoped source package in its private late-bound runtime. That package
 may contain a completed source-native export, database/WAL/SHM recovery
 snapshot, media payloads or references, hashes, coverage, lineage and
 checkpoints. It is recovery and evidence material, not a second writable WeFlow
-database or a new public archive product. WeFlowBridge continues to own
-versioned acquisition and decoding semantics; PersonalOS owns the private
-package and its replaceable derived representations.
+database or a new public archive product. WeFlow/WeLive owns source data,
+decryption and export implementation; WeFlowBridge owns the version-bound
+adaptation, handoff and verification contracts; PersonalOS owns the authorized
+private package and its replaceable derived representations.
 
 This permission never moves secrets or raw payloads into this public repository,
 never authorizes source write-back, and never lets an empty or partial export

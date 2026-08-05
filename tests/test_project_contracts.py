@@ -378,6 +378,113 @@ class ProjectContractTests(unittest.TestCase):
         self.assertNotIn("Set-ItemProperty", public_boundary)
         self.assertNotIn("Start-Process", public_boundary)
 
+    def test_boot_guardian_preserves_pcconfig_owned_wechat_autostart(self):
+        script = read_text("weflow_boot_guardian.ps1")
+        watchdog = read_text("WATCHDOG.md")
+        owner_marker = "owner=pcconfig.wechat-dual-autostart.v1"
+        task_lookup = (
+            "Get-ScheduledTask -TaskName 'WeChat AutoStart' "
+            "-ErrorAction SilentlyContinue"
+        )
+        owner_check = (
+            "Where-Object { "
+            "([string]$_.Description).Contains($wechatTaskOwnerMarker) }"
+        )
+        register_call = "Register-ScheduledTask -TaskName 'WeChat AutoStart'"
+
+        self.assertIn(owner_marker, script)
+        self.assertIn(task_lookup, script)
+        self.assertIn(owner_check, script)
+        self.assertEqual(script.count(register_call), 1)
+
+        lookup_index = script.index(task_lookup)
+        guard_index = script.index("if ($pcConfigOwnedWeChatTask)", lookup_index)
+        fallback_index = script.index("} else {", guard_index)
+        register_index = script.index(register_call)
+        self.assertLess(lookup_index, guard_index)
+        self.assertLess(guard_index, fallback_index)
+        self.assertLess(fallback_index, register_index)
+        self.assertNotIn(register_call, script[guard_index:fallback_index])
+        legacy_fallback = script[register_index:]
+        self.assertIn(
+            "-Description '登录时自动启动微信(稳定，无重启看门狗)' -Force",
+            legacy_fallback,
+        )
+
+        self.assertIn(owner_marker, watchdog)
+        self.assertIn("保留 PCConfig 管理的双开任务", watchdog)
+        self.assertIn("仍按原行为注册单次启动任务", watchdog)
+
+    def test_heartbeat_supports_bounded_multi_profile_startup(self):
+        script = read_text("weflow_heartbeat.ps1")
+        vbs = read_text("weflow_heartbeat.vbs")
+        watchdog = read_text("WATCHDOG.md")
+
+        required_script_terms = [
+            "[ValidateRange(1, 65535)]",
+            "[int]$Port = 5031",
+            "[string]$UserDataDir",
+            "[string]$InstanceName",
+            "[string]$LogPath",
+            "function Test-WeFlowHealth",
+            "Invoke-WebRequest",
+            "-TimeoutSec $HttpTimeoutSeconds",
+            "ConnectAsync('127.0.0.1', $Port)",
+            ".Wait($TcpTimeoutMilliseconds)",
+            "function Get-TargetWeFlowProcess",
+            "Get-CimInstance -ClassName Win32_Process",
+            "([string]$process.CommandLine)",
+            "--user-data-dir",
+            "required profile directory is missing",
+            "Test-Path -LiteralPath $effectiveUserDataDir -PathType Container",
+            "$profileMatch = [regex]::Match($commandLine, $userDataPattern)",
+            "if (-not $targetProfilePath)",
+            "if (-not $profileMatch.Success) { return $process }",
+            "OrdinalIgnoreCase.Equals($normalizedProcessProfilePath, $targetProfilePath)",
+            "$targetProfileProcess = Get-TargetWeFlowProcess",
+            "WorkingDirectory = $workingDirectory",
+            "$startParameters['ArgumentList']",
+            "--user-data-dir=`\"$effectiveUserDataDir`\"",
+            "Start-Process @startParameters",
+            "$startupDeadline = (Get-Date).AddSeconds($StartupWaitSeconds)",
+            "while ((Get-Date) -lt $startupDeadline)",
+        ]
+        for term in required_script_terms:
+            with self.subTest(term=term):
+                self.assertIn(term, script)
+
+        self.assertNotIn("Get-Process WeFlow", script)
+        self.assertNotIn("while ($true)", script)
+        self.assertEqual(script.count("Start-Process @startParameters"), 1)
+        target_lookup_index = script.index(
+            "$targetProfileProcess = Get-TargetWeFlowProcess"
+        )
+        target_guard_index = script.index(
+            "if ($targetProfileProcess)", target_lookup_index
+        )
+        start_index = script.index("Start-Process @startParameters")
+        self.assertLess(target_lookup_index, target_guard_index)
+        self.assertLess(target_guard_index, start_index)
+
+        self.assertIn("\\weflow_heartbeat.ps1\"\"\"", vbs)
+        self.assertNotIn("-Port", vbs)
+        self.assertNotIn("--user-data-dir", vbs)
+
+        required_doc_terms = [
+            "零参数调用保持兼容",
+            "`-Port`",
+            "`-UserDataDir`",
+            "`-InstanceName`",
+            "`-LogPath`",
+            "16000",
+            "只匹配目标 profile",
+            "profile 目录不存在时失败关闭",
+            "有界等待",
+        ]
+        for term in required_doc_terms:
+            with self.subTest(term=term):
+                self.assertIn(term, watchdog)
+
     def test_probe_weflow_supports_metadata_only_json_mode(self):
         script = read_text("probe-weflow.ps1")
 

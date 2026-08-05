@@ -147,3 +147,11 @@ WeFlowBridge owns only the version-bound adaptation, handoff and verification
 contracts; PersonalOS owns its authorized private immutable evidence package,
 coverage and derived representations. This does not authorize a new archive
 product, vector store, relationship database or duplicate semantic owner.
+
+`tools/build_private_snapshot_manifest.py` is the narrow verification entry for
+an already acquired, account-scoped private snapshot. It enumerates files and
+hashes raw bytes without parsing message or media content, then performs a full
+second-pass SHA-256 readback before publishing a receipt. Its output must stay in
+a private non-repository destination. The receipt proves the referenced byte set;
+it does not decrypt data, perform the source-native export, or make a mutable
+source directory immutable.

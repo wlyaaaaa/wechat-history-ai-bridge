@@ -331,6 +331,49 @@ class ProjectContractTests(unittest.TestCase):
                 with self.assertRaises(ValidationError):
                     validator.validate(malformed)
 
+    def test_private_snapshot_owner_boundary_is_consistent_across_contracts(self):
+        manifest = read_json("project_manifest.json")
+        schema = read_json("schemas/project-manifest.v1.schema.json")
+        canonical_owner_boundary = (
+            "WeFlow/WeLive owns source data, decryption, and export implementation; "
+            "WeFlowBridge owns version-bound adaptation, handoff, and verification "
+            "contracts; PersonalOS owns the authorized private immutable package and "
+            "derived representations"
+        )
+
+        self.assertEqual(
+            manifest["private_snapshot_handoff"]["owner_boundary"],
+            canonical_owner_boundary,
+        )
+        self.assertEqual(
+            schema["properties"]["private_snapshot_handoff"]["properties"]
+            ["owner_boundary"]["const"],
+            canonical_owner_boundary,
+        )
+
+        agents = read_text("AGENTS.md")
+        for term in (
+            "WeFlow/WeLive 拥有源数据、解密与导出实现",
+            "WeFlowBridge 只拥有版本绑定的适配、交接及验证合同",
+            "PersonalOS 拥有该私密包及其可替换派生表示",
+        ):
+            with self.subTest(document="AGENTS.md", term=term):
+                self.assertIn(term, agents)
+
+        for relative_path in (
+            "docs/ai_consumer_contract.md",
+            "docs/privacy_boundary.md",
+        ):
+            text = re.sub(r"\s+", " ", read_text(relative_path))
+            for term in (
+                "WeFlow/WeLive owns source data, decryption and export implementation",
+                "WeFlowBridge owns",
+                "version-bound adaptation, handoff and verification contract",
+                "PersonalOS owns",
+            ):
+                with self.subTest(document=relative_path, term=term):
+                    self.assertIn(term, text)
+
     def test_public_boundary_scripts_exist_and_cover_ci_checks(self):
         public_boundary = read_text("tools/test-public-boundary.ps1")
         ci_local = read_text("tools/test-ci-local.ps1")

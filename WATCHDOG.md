@@ -25,6 +25,8 @@
 | `-UserDataDir` | 可选独立 profile 目录；提供时会传给 WeFlow 的 `--user-data-dir` |
 | `-InstanceName` | 可选日志实例名，不参与 profile 匹配 |
 | `-LogPath` | 可选独立日志路径 |
+| `-NoProxyServer` | 可选；启动 Electron 时绕过系统代理，不依赖或猜测代理端口 |
+| `-HiddenLaunch` | 可选；让后台任务启动的 WeFlow 窗口保持隐藏 |
 
 例如，为一个使用 16000 端口的独立 profile 运行一次有界检查（示例目录不代表
 本机真实 profile）：
@@ -55,7 +57,7 @@ Electron 静默创建空 profile。profile 的迁移、登录态和 API 端口�
 
 ### 静默执行包装器 (`weflow_heartbeat.vbs`)
 为了避免 Windows 计划任务在后台每 15 分钟执行 PowerShell 检查时在桌面短暂闪烁出现黑框（控制台窗口），项目中提供了一个 **VBScript 静默包装器**：
-- `weflow_heartbeat.vbs` 会按旧的零参数方式在后台静默调用 `weflow_heartbeat.ps1`，不创建任何可见窗口。
+- `weflow_heartbeat.vbs` 会在后台静默调用 `weflow_heartbeat.ps1`，不创建任何可见窗口；零参数调用保持兼容，也会安全透传多 profile 参数。
 - `weflow_boot_guardian.ps1` 注册计划任务时，会自动检测此 VBS 文件；若存在则以 `wscript.exe` 注册该静默任务。
 
 ### 安装命令

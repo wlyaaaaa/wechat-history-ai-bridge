@@ -14,6 +14,10 @@
   可选的日志实例名，不参与进程匹配。
 .PARAMETER LogPath
   可选日志路径；默认 <project>\logs\weflow_heartbeat.log。
+.PARAMETER NoProxyServer
+  启动 WeFlow 时传入 Electron --no-proxy-server，隔离登录阶段的系统代理竞态。
+.PARAMETER HiddenLaunch
+  以隐藏窗口方式启动 WeFlow，供后台计划任务使用。
 #>
 [CmdletBinding()]
 param(
@@ -27,7 +31,11 @@ param(
     [string]$InstanceName,
 
     [AllowNull()]
-    [string]$LogPath
+    [string]$LogPath,
+
+    [switch]$NoProxyServer,
+
+    [switch]$HiddenLaunch
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,7 +49,7 @@ $exe = 'C:\Program Files\WeFlow\WeFlow.exe'
 $workingDirectory = Split-Path -Parent $exe
 $HttpTimeoutSeconds = 2
 $TcpTimeoutMilliseconds = 1500
-$StartupWaitSeconds = 15
+$StartupWaitSeconds = 30
 $ProbeIntervalMilliseconds = 1000
 
 function ConvertTo-NormalizedProfilePath {
@@ -170,8 +178,18 @@ $startParameters = @{
     PassThru = $true
     ErrorAction = 'Stop'
 }
+$weFlowArguments = @()
 if ($effectiveUserDataDir) {
-    $startParameters['ArgumentList'] = @("--user-data-dir=`"$effectiveUserDataDir`"")
+    $weFlowArguments += "--user-data-dir=`"$effectiveUserDataDir`""
+}
+if ($NoProxyServer) {
+    $weFlowArguments += '--no-proxy-server'
+}
+if ($weFlowArguments.Count -gt 0) {
+    $startParameters['ArgumentList'] = $weFlowArguments
+}
+if ($HiddenLaunch) {
+    $startParameters['WindowStyle'] = 'Hidden'
 }
 
 try {

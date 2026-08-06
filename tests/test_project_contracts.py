@@ -426,6 +426,8 @@ class ProjectContractTests(unittest.TestCase):
             "[string]$UserDataDir",
             "[string]$InstanceName",
             "[string]$LogPath",
+            "[switch]$NoProxyServer",
+            "[switch]$HiddenLaunch",
             "function Test-WeFlowHealth",
             "Invoke-WebRequest",
             "-TimeoutSec $HttpTimeoutSeconds",
@@ -445,7 +447,10 @@ class ProjectContractTests(unittest.TestCase):
             "WorkingDirectory = $workingDirectory",
             "$startParameters['ArgumentList']",
             "--user-data-dir=`\"$effectiveUserDataDir`\"",
+            "--no-proxy-server",
+            "$startParameters['WindowStyle'] = 'Hidden'",
             "Start-Process @startParameters",
+            "$StartupWaitSeconds = 30",
             "$startupDeadline = (Get-Date).AddSeconds($StartupWaitSeconds)",
             "while ((Get-Date) -lt $startupDeadline)",
         ]
@@ -466,9 +471,9 @@ class ProjectContractTests(unittest.TestCase):
         self.assertLess(target_lookup_index, target_guard_index)
         self.assertLess(target_guard_index, start_index)
 
-        self.assertIn("\\weflow_heartbeat.ps1\"\"\"", vbs)
-        self.assertNotIn("-Port", vbs)
-        self.assertNotIn("--user-data-dir", vbs)
+        self.assertIn('QuoteCommandLineArgument(here & "\\weflow_heartbeat.ps1")', vbs)
+        self.assertIn("For Each argument In WScript.Arguments", vbs)
+        self.assertIn("QuoteCommandLineArgument", vbs)
 
         required_doc_terms = [
             "零参数调用保持兼容",
@@ -476,6 +481,8 @@ class ProjectContractTests(unittest.TestCase):
             "`-UserDataDir`",
             "`-InstanceName`",
             "`-LogPath`",
+            "`-NoProxyServer`",
+            "`-HiddenLaunch`",
             "16000",
             "只匹配目标 profile",
             "profile 目录不存在时失败关闭",

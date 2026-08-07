@@ -14,11 +14,14 @@ SPEC.loader.exec_module(MODULE)
 
 
 class PrivateSnapshotManifestTests(unittest.TestCase):
-    def test_builds_account_scoped_manifest_and_full_readback_receipt(self):
+    def test_allows_external_temporary_destination_and_builds_full_readback_receipt(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = root / "source"
             destination = root / "output" / "snapshot"
+            self.assertFalse(
+                MODULE._is_within(destination.resolve(strict=False), MODULE.REPOSITORY_ROOT)
+            )
             (source / "msg").mkdir(parents=True)
             (source / "media").mkdir()
             (source / "msg" / "main.db").write_bytes(b"synthetic-database-bytes")
@@ -56,6 +59,23 @@ class PrivateSnapshotManifestTests(unittest.TestCase):
             output_text = (destination / "files.jsonl").read_text("utf-8")
             self.assertNotIn("synthetic-database-bytes", output_text)
             self.assertNotIn("synthetic-media-bytes", output_text)
+
+    def test_rejects_repository_root_and_existing_repository_subtree_destinations(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "source"
+            source.mkdir()
+            (source / "a.bin").write_bytes(b"a")
+
+            for destination in (MODULE.REPOSITORY_ROOT, MODULE.REPOSITORY_ROOT / "tools"):
+                with self.subTest(destination=destination):
+                    with self.assertRaisesRegex(
+                        MODULE.SnapshotManifestError, "outside the repository tree"
+                    ):
+                        MODULE.build_manifest(
+                            source,
+                            destination,
+                            "src.weflow.account.synthetic",
+                        )
 
     def test_rejects_destination_inside_source(self):
         with tempfile.TemporaryDirectory() as temporary:

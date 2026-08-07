@@ -695,6 +695,7 @@ class ProjectContractTests(unittest.TestCase):
             "*.db-shm",
             "*.sqlite-wal",
             "*.sqlite-shm",
+            "/private-snapshot-*/",
             "logs/",
         ]
         for pattern in required_patterns:

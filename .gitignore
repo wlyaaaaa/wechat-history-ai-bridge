@@ -29,6 +29,10 @@ dump/
 *.sqlite3-wal
 *.sqlite3-shm
 
+# Private snapshot manifest output — defense in depth only. The builder rejects
+# repository destinations; this precise root-level fallback never hides source or tests.
+/private-snapshot-*/
+
 # ============================================================
 #  常规
 # ============================================================

@@ -93,7 +93,11 @@ $expectedIgnoredPaths = @(
     'sample.sqlite',
     'sample.sqlite3',
     'sample.db-wal',
-    'sample.sqlite-shm'
+    'sample.sqlite-shm',
+    'private-snapshot-synthetic/manifest.json',
+    'private-snapshot-synthetic/files.jsonl',
+    'private-snapshot-synthetic/readback-receipt.json',
+    'private-snapshot-synthetic.incomplete/progress.json'
 )
 
 foreach ($path in $expectedIgnoredPaths) {
@@ -103,6 +107,22 @@ foreach ($path in $expectedIgnoredPaths) {
     }
 }
 Pass "gitignore private output boundary"
+
+$expectedNotIgnoredPaths = @(
+    'tools/build_private_snapshot_manifest.py',
+    'tests/test_private_snapshot_manifest.py'
+)
+
+foreach ($path in $expectedNotIgnoredPaths) {
+    & git -C $RepoRoot check-ignore -q -- $path
+    if ($LASTEXITCODE -eq 0) {
+        Fail "gitignore unexpectedly ignores source or test path: $path"
+    }
+    if ($LASTEXITCODE -ne 1) {
+        Fail "git check-ignore failed for expected non-ignored path: $path"
+    }
+}
+Pass "gitignore preserves snapshot tool and tests"
 
 $sensitiveEnvKeys = @(
     'WEFLOW_TOKEN',
@@ -228,3 +248,4 @@ foreach ($target in $parseTargets) {
 Pass "PowerShell parser coverage"
 
 Pass "public boundary checks complete"
+$global:LASTEXITCODE = 0

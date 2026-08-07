@@ -152,6 +152,9 @@ product, vector store, relationship database or duplicate semantic owner.
 an already acquired, account-scoped private snapshot. It enumerates files and
 hashes raw bytes without parsing message or media content, then performs a full
 second-pass SHA-256 readback before publishing a receipt. Its output must stay in
-a private non-repository destination. The receipt proves the referenced byte set;
-it does not decrypt data, perform the source-native export, or make a mutable
-source directory immutable.
+a private non-repository destination. The tool refuses a destination that
+resolves to this repository root or any descendant. Use an external private
+directory named `private-snapshot-...`; the repository's exact root-level
+ignore rule is only a defense-in-depth fallback and never authorizes local
+storage. The receipt proves the referenced byte set; it does not decrypt data,
+perform the source-native export, or make a mutable source directory immutable.

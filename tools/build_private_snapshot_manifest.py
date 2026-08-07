@@ -20,6 +20,7 @@ from typing import Iterable
 SCHEMA = "weflowbridge.private-snapshot-manifest.v1"
 RECEIPT_SCHEMA = "weflowbridge.private-snapshot-readback-receipt.v1"
 FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 class SnapshotManifestError(RuntimeError):
@@ -131,6 +132,8 @@ def build_manifest(
         raise SnapshotManifestError("source root must be a directory")
     if not source_instance_id.strip():
         raise SnapshotManifestError("source instance id must not be empty")
+    if _is_within(destination, REPOSITORY_ROOT):
+        raise SnapshotManifestError("destination must be outside the repository tree")
     if destination.exists():
         raise SnapshotManifestError("destination already exists")
     if _is_within(destination, source_root) or _is_within(source_root, destination):

@@ -1,7 +1,10 @@
 import unittest
 from copy import deepcopy
 import json
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 from jsonschema import Draft202012Validator, ValidationError
@@ -31,6 +34,101 @@ def assert_public_safe_text(testcase: unittest.TestCase, text: str) -> None:
     for pattern in forbidden_patterns:
         with testcase.subTest(pattern=pattern):
             testcase.assertIsNone(re.search(pattern, text))
+
+
+REQUIRED_PROBE_ENDPOINTS = (
+    "GET /health",
+    "GET /api/v1/sessions?limit=3",
+    "GET /api/v1/sessions?format=chatlab",
+    "GET /api/v1/contacts?limit=3",
+    "GET /api/v1/sns/export/stats",
+)
+
+
+def run_synthetic_metadata_probe(*, scenario: str):
+    if scenario not in {"missing_env", "health_fail", "required_fail", "optional_fail"}:
+        raise ValueError(f"unsupported synthetic probe scenario: {scenario}")
+    shell = (
+        shutil.which("powershell.exe") if os.name == "nt" else shutil.which("pwsh")
+    )
+    shell = shell or shutil.which("pwsh.exe") or shutil.which("pwsh") or shutil.which("powershell")
+    if shell is None:
+        raise AssertionError("PowerShell is required for probe behavior tests")
+    probe_path = str(ROOT / "probe-weflow.ps1").replace("'", "''")
+    env_present = "$false" if scenario == "missing_env" else "$true"
+    if scenario == "optional_fail":
+        response_behavior = r"""
+    if ($Uri -eq 'http://127.0.0.1:65534/health') {
+        return [pscustomobject]@{ status = 'ok' }
+    }
+    if ($Method -eq 'POST') {
+        throw 'synthetic optional endpoint failure'
+    }
+    if ($Uri -eq 'http://127.0.0.1:65534/api/v1/sessions?limit=3') {
+        return [pscustomobject]@{ sessions = @(); count = 0; total = 0 }
+    }
+    if ($Uri -eq 'http://127.0.0.1:65534/api/v1/sessions?format=chatlab&limit=1') {
+        return [pscustomobject]@{ sessions = @(); count = 0; total = 0 }
+    }
+    if ($Uri -eq 'http://127.0.0.1:65534/api/v1/contacts?limit=3') {
+        return [pscustomobject]@{ contacts = @(); count = 0 }
+    }
+    if ($Uri -eq 'http://127.0.0.1:65534/api/v1/sns/export/stats') {
+        return [pscustomobject]@{ data = [pscustomobject]@{ totalPosts = 0 } }
+    }
+    throw "unexpected synthetic URI: $Uri"
+"""
+    elif scenario == "required_fail":
+        response_behavior = r"""
+    if ($Uri -eq 'http://127.0.0.1:65534/health') {
+        return [pscustomobject]@{ status = 'ok' }
+    }
+    throw 'synthetic required endpoint failure'
+"""
+    else:
+        response_behavior = r"""
+    throw 'synthetic network call must fail'
+"""
+    command = r"""
+function global:Test-Path {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position=0)][string]$Path,
+        [string]$LiteralPath,
+        [string]$PathType
+    )
+    return """ + env_present + r"""
+}
+function global:Get-Content {
+    [CmdletBinding()]
+    param([Parameter(Position=0)][string]$Path, [string]$LiteralPath)
+    return @(
+        'WEFLOW_BASE_URL=http://127.0.0.1:65534',
+        'WEFLOW_TOKEN=synthetic-invalid'
+    )
+}
+function global:Invoke-RestMethod {
+    [CmdletBinding()]
+    param(
+        [string]$Uri,
+        [hashtable]$Headers,
+        [int]$TimeoutSec,
+        [string]$Method = 'GET',
+        [string]$ContentType,
+        $Body
+    )
+""" + response_behavior + "\n}\n& '" + probe_path + "' -Json -Mode MetadataOnly -NoMessages\n"
+    completed = subprocess.run(
+        [shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    payload = json.loads(completed.stdout.lstrip("\ufeff").strip())
+    return completed, payload
 
 
 class ProjectContractTests(unittest.TestCase):
@@ -548,6 +646,8 @@ class ProjectContractTests(unittest.TestCase):
             "base_url_redacted",
             "token_present",
             "endpoint_results",
+            "required_endpoint_failures",
+            "Get-RequiredEndpointFailures",
             "$effectiveNoMessages = $NoMessages -or $Mode -eq 'MetadataOnly'",
             "message_text_printed",
             "raw_media_paths_included",
@@ -561,6 +661,49 @@ class ProjectContractTests(unittest.TestCase):
         self.assertNotIn("Register-ScheduledTask", script)
         self.assertNotIn("Set-ItemProperty", script)
         self.assertNotIn("DefaultPassword", script)
+
+    def test_metadata_probe_fails_when_env_is_missing(self):
+        completed, payload = run_synthetic_metadata_probe(scenario="missing_env")
+
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["required_endpoint_failures"], list(REQUIRED_PROBE_ENDPOINTS))
+        self.assertEqual(payload["endpoint_results"], [])
+        self.assertEqual(payload["error"], "missing_env")
+
+    def test_metadata_probe_fails_when_health_fails(self):
+        completed, payload = run_synthetic_metadata_probe(scenario="health_fail")
+
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["required_endpoint_failures"], list(REQUIRED_PROBE_ENDPOINTS))
+        self.assertEqual(len(payload["endpoint_results"]), 1)
+        self.assertEqual(payload["endpoint_results"][0]["name"], "GET /health")
+        self.assertFalse(payload["endpoint_results"][0]["ok"])
+
+    def test_metadata_probe_fails_when_required_endpoints_fail(self):
+        completed, payload = run_synthetic_metadata_probe(scenario="required_fail")
+
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(
+            payload["required_endpoint_failures"],
+            list(REQUIRED_PROBE_ENDPOINTS[1:]),
+        )
+        self.assertTrue(any(not result["ok"] for result in payload["endpoint_results"]))
+
+    def test_metadata_probe_ignores_optional_endpoint_failure(self):
+        completed, payload = run_synthetic_metadata_probe(scenario="optional_fail")
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["required_endpoint_failures"], [])
+        post_sessions = next(
+            result
+            for result in payload["endpoint_results"]
+            if result["name"] == "POST /api/v1/sessions"
+        )
+        self.assertFalse(post_sessions["ok"])
 
     def test_openapi_write_operations_are_not_ai_callable(self):
         openapi = read_text("docs/openapi.yaml")

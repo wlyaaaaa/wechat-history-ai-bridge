@@ -12,6 +12,25 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 $effectiveNoMessages = $NoMessages -or $Mode -eq 'MetadataOnly'
+$requiredEndpointNames = @(
+    'GET /health',
+    'GET /api/v1/sessions?limit=3',
+    'GET /api/v1/sessions?format=chatlab',
+    'GET /api/v1/contacts?limit=3',
+    'GET /api/v1/sns/export/stats'
+)
+
+function Get-RequiredEndpointFailures([object[]]$EndpointResults) {
+    $results = @($EndpointResults)
+    $failures = [System.Collections.Generic.List[string]]::new()
+    foreach ($requiredName in $requiredEndpointNames) {
+        $match = @($results | Where-Object { $_.name -eq $requiredName } | Select-Object -First 1)
+        if ($match.Count -ne 1 -or -not [bool]($match[0].ok)) {
+            $failures.Add($requiredName)
+        }
+    }
+    return @($failures)
+}
 
 function Get-Shape($value) {
     if ($null -eq $value) { return '' }
@@ -135,6 +154,8 @@ if (-not $envExists) {
     if ($Json) {
         [ordered]@{
             schema_version = 'weflow-probe.v1'
+            ok = $false
+            required_endpoint_failures = @($requiredEndpointNames)
             weflow_baseline = @{
                 version = '26.7.3'
                 product_version = '26.7.3.0'
@@ -218,8 +239,14 @@ if ($Json) {
         }
     }
 
+    $requiredEndpointFailures = @(
+        Get-RequiredEndpointFailures -EndpointResults @($endpointResults)
+    )
+    $probeOk = $requiredEndpointFailures.Count -eq 0
     [ordered]@{
         schema_version = 'weflow-probe.v1'
+        ok = $probeOk
+        required_endpoint_failures = $requiredEndpointFailures
         weflow_baseline = @{
             version = '26.7.3'
             product_version = '26.7.3.0'
@@ -239,7 +266,7 @@ if ($Json) {
         endpoint_results = @($endpointResults)
     } | ConvertTo-Json -Depth 8
 
-    if (-not $health.result.ok) { exit 1 }
+    if (-not $probeOk) { exit 1 }
     exit 0
 }
 
@@ -250,18 +277,22 @@ if ($null -eq $h) {
     Write-Host "`nService may be offline. Start WeFlow API service in local settings." -ForegroundColor Yellow
     exit 1
 }
+$requiredEndpointFailures = [System.Collections.Generic.List[string]]::new()
 
 $s = Try-Get 'GET /api/v1/sessions?limit=3' "${base}/api/v1/sessions?limit=3" $headers
 if ($s) { Write-Host "     session_count: $($s.count) / total: $($s.total)" }
+if ($null -eq $s) { $requiredEndpointFailures.Add('GET /api/v1/sessions?limit=3') }
 
 $sp = Try-Post 'POST /api/v1/sessions' "${base}/api/v1/sessions" $headers @{ limit = 1 }
 if ($sp) { Write-Host "     POST sessions probe: OK" }
 
 $sc = Try-Get 'GET /api/v1/sessions?format=chatlab' "${base}/api/v1/sessions?format=chatlab&limit=1" $headers
 if ($sc -and $sc.sessions) { Write-Host "     ChatLab Pull session_index_count: $(@($sc.sessions).Count)" }
+if ($null -eq $sc) { $requiredEndpointFailures.Add('GET /api/v1/sessions?format=chatlab') }
 
 $c = Try-Get 'GET /api/v1/contacts?limit=3' "${base}/api/v1/contacts?limit=3" $headers
 if ($c) { Write-Host "     contact_count: $($c.count)" }
+if ($null -eq $c) { $requiredEndpointFailures.Add('GET /api/v1/contacts?limit=3') }
 
 $grp = $null
 $grpSession = $null
@@ -286,6 +317,7 @@ if ($grp) {
 
 $es = Try-Get 'GET /api/v1/sns/export/stats' "${base}/api/v1/sns/export/stats" $headers
 if ($es) { Write-Host "     sns_stats: totalPosts=$($es.data.totalPosts) totalFriends=$($es.data.totalFriends) myPosts=$($es.data.myPosts)" }
+if ($null -eq $es) { $requiredEndpointFailures.Add('GET /api/v1/sns/export/stats') }
 
 if ($grp -and -not $effectiveNoMessages) {
     $latest = Try-Get 'GET /api/v1/messages (redacted group, latest no date)' "${base}/api/v1/messages?talker=$grp&limit=5" $headers
@@ -319,4 +351,10 @@ if ($grp -and -not $effectiveNoMessages) {
     }
 }
 
+if ($requiredEndpointFailures.Count -gt 0) {
+    Write-Host "`nProbe incomplete. Required endpoint failures: $($requiredEndpointFailures -join ', ')" -ForegroundColor Red
+    exit 1
+}
+
 Write-Host "`nProbe complete. Endpoint baseline: WeFlow 26.7.3 / 2026-07-09; re-probe after version changes." -ForegroundColor Cyan
+exit 0
